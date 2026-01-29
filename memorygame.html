@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Memory Card Game</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --card:#1f2937;
+      --card2:#111827;
+      --accent:#22c55e;
+      --accent2:#60a5fa;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --shadow: 0 18px 50px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Arial, system-ui;
+      background: radial-gradient(900px 500px at 20% 10%, rgba(96,165,250,.18), transparent 60%),
+                  radial-gradient(900px 500px at 80% 20%, rgba(34,197,94,.14), transparent 60%),
+                  linear-gradient(180deg, #0b1020, var(--bg));
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:20px;
+    }
+    .wrap{
+      width:min(900px, 100%);
+      display:grid;
+      gap:14px;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      display:grid;place-items:center;
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+    }
+    h1{margin:0;font-size:18px}
+    .sub{margin:2px 0 0;color:var(--muted);font-size:12px}
+    .bar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .pill{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:8px 12px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .pill b{color:var(--text)}
+    button{
+      border:none;
+      padding:10px 14px;
+      border-radius: 14px;
+      cursor:pointer;
+      color:var(--text);
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      transition: transform .1s ease;
+    }
+    button:hover{transform: translateY(-1px)}
+    .primary{
+      background: linear-gradient(135deg, rgba(34,197,94,.22), rgba(96,165,250,.18));
+    }
+
+    .panel{
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 20px;
+      padding:16px;
+      box-shadow: var(--shadow);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(4, 86px);
+      gap:12px;
+      justify-content:center;
+      margin-top: 14px;
+    }
+    @media (max-width:420px){
+      .grid{grid-template-columns: repeat(4, 70px); gap:10px}
+    }
+
+    .card{
+      width: 86px;
+      height: 86px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 30px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .card:hover{transform: translateY(-2px); border-color: rgba(255,255,255,.22)}
+    .card.flipped{
+      background: rgba(96,165,250,.18);
+      border-color: rgba(96,165,250,.32);
+    }
+    .card.matched{
+      background: rgba(34,197,94,.18);
+      border-color: rgba(34,197,94,.34);
+      cursor: default;
+    }
+
+    .msg{
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .win{
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-size:12px;
+      padding:8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .toggle input{width:18px;height:18px; accent-color:#60a5fa;}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="logo">🧠</div>
+        <div>
+          <h1>Memory Card Game</h1>
+          <div class="sub">HTML • CSS • JavaScript • Offline (Chrome)</div>
+        </div>
+      </div>
+
+      <div class="bar">
+        <div class="pill">Moves: <b id="moves">0</b></div>
+        <div class="pill">Matches: <b id="matches">0</b>/4</div>
+
+        <label class="toggle">
+          <input type="checkbox" id="sound" checked>
+          Sound
+        </label>
+
+        <button class="primary" id="restart">Restart</button>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="msg" id="msg">Flip two cards and match the pairs.</div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Sound (no mp3; simple beep) ----
+    let audioCtx = null;
+    const soundEl = document.getElementById("sound");
+    function ensureAudio(){
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+    }
+    function beep(freq=520, dur=0.06){
+      if(!soundEl.checked) return;
+      ensureAudio();
+      const t0 = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+    document.addEventListener("pointerdown", ()=>{ if(soundEl.checked) ensureAudio(); }, { once:true });
+
+    // ---- Game ----
+    const grid = document.getElementById("grid");
+    const movesEl = document.getElementById("moves");
+    const matchesEl = document.getElementById("matches");
+    const msgEl = document.getElementById("msg");
+    const restartBtn = document.getElementById("restart");
+
+    const baseEmojis = ["🍎","🍌","🍇","🍓"]; // 4 pairs
+    let deck = [];
+    let first = null;
+    let second = null;
+    let lock = false;
+    let moves = 0;
+    let matches = 0;
+
+    function shuffle(arr){
+      return arr.sort(() => 0.5 - Math.random());
+    }
+
+    function setMessage(text, win=false){
+      msgEl.innerHTML = win ? `<span class="win">${text}</span>` : text;
+    }
+
+    function render(){
+      grid.innerHTML = "";
+      deck.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.textContent = "❓";
+        card.dataset.emoji = item.emoji;
+        card.dataset.id = item.id;
+
+        card.addEventListener("click", () => onFlip(card));
+        grid.appendChild(card);
+      });
+    }
+
+    function reset(){
+      deck = shuffle([...baseEmojis, ...baseEmojis]).map((emoji, i) => ({ id:i, emoji, matched:false }));
+      first = null;
+      second = null;
+      lock = false;
+      moves = 0;
+      matches = 0;
+      movesEl.textContent = "0";
+      matchesEl.textContent = "0";
+      setMessage("Flip two cards and match the pairs.");
+      render();
+      beep(420, 0.05);
+    }
+
+    function onFlip(card){
+      if(lock) return;
+
+      const id = Number(card.dataset.id);
+      const item = deck[id];
+      if(item.matched) return;
+      if(card.classList.contains("flipped")) return;
+
+      // flip
+      card.classList.add("flipped");
+      card.textContent = item.emoji;
+      beep(520, 0.05);
+
+      if(!first){
+        first = card;
+        return;
+      }
+
+      second = card;
+      moves++;
+      movesEl.textContent = String(moves);
+
+      const a = first.dataset.emoji;
+      const b = second.dataset.emoji;
+
+      lock = true;
+
+      if(a === b){
+        // match
+        beep(700, 0.06); setTimeout(()=>beep(900,0.07), 80);
+
+        setTimeout(() => {
+          first.classList.add("matched");
+          second.classList.add("matched");
+
+          deck[Number(first.dataset.id)].matched = true;
+          deck[Number(second.dataset.id)].matched = true;
+
+          matches++;
+          matchesEl.textContent = String(matches);
+
+          first = null;
+          second = null;
+          lock = false;
+
+          if(matches === 4){
+            setMessage(`You win! 🎉 Moves: ${moves}`, true);
+            beep(523,0.07); setTimeout(()=>beep(659,0.07),90); setTimeout(()=>beep(784,0.09),180);
+          }
+        }, 220);
+      } else {
+        // wrong
+        beep(240, 0.08);
+        setTimeout(() => {
+          first.classList.remove("flipped");
+          second.classList.remove("flipped");
+          first.textContent = "❓";
+          second.textContent = "❓";
+          first = null;
+          second = null;
+          lock = false;
+        }, 700);
+      }
+    }
+
+    restartBtn.addEventListener("click", reset);
+    soundEl.addEventListener("change", ()=>beep(420,0.05));
+
+    reset();
+  </script>
+</body>
+</html>
